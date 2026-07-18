@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const BASE_URL = import.meta.env.API_URL;
 
 /**
  * API service to communicate with the FastAPI river monitor backend.
