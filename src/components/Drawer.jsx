@@ -27,6 +27,7 @@ export default function Drawer({ isOpen, onClose, item, onUpdateThresholds }) {
   const [stationLocation, setStationLocation] = useState("");
   const [latCoord, setLatCoord] = useState("");
   const [lngCoord, setLngCoord] = useState("");
+  const [minLevelThreshold, setMinLevelThreshold] = useState("");
   const [levelThreshold, setLevelThreshold] = useState("");
   const [debitThreshold, setDebitThreshold] = useState("");
   const [isLocating, setIsLocating] = useState(false);
@@ -41,6 +42,7 @@ export default function Drawer({ isOpen, onClose, item, onUpdateThresholds }) {
       setLngCoord(item.lng || "");
       setLocationError("");
       if (item.type === "station") {
+        setMinLevelThreshold(item.minLevelThreshold !== undefined && item.minLevelThreshold !== null ? item.minLevelThreshold : "");
         setLevelThreshold(item.maxLevelThreshold || "");
         setDebitThreshold(item.maxDebitThreshold || "");
       }
@@ -82,8 +84,9 @@ export default function Drawer({ isOpen, onClose, item, onUpdateThresholds }) {
         location: stationLocation,
         lat: parseFloat(latCoord),
         lng: parseFloat(lngCoord),
-        maxLevelThreshold: parseFloat(levelThreshold),
-        maxDebitThreshold: parseFloat(debitThreshold)
+        minLevelThreshold: minLevelThreshold !== "" ? parseFloat(minLevelThreshold) : null,
+        maxLevelThreshold: levelThreshold !== "" ? parseFloat(levelThreshold) : null,
+        maxDebitThreshold: debitThreshold !== "" ? parseFloat(debitThreshold) : null
       });
     }
   };
@@ -277,7 +280,20 @@ export default function Drawer({ isOpen, onClose, item, onUpdateThresholds }) {
                 {/* Threshold limits edits */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">
+                    <label className="block text-[10px] font-bold text-amber-600 dark:text-amber-500 uppercase mb-1">
+                      Min Water Level (m)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={minLevelThreshold}
+                      onChange={(e) => setMinLevelThreshold(e.target.value)}
+                      placeholder="e.g. 2.0"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium dark:border-slate-800 dark:bg-slate-900 focus:outline-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-rose-500 dark:text-rose-400 uppercase mb-1">
                       Max Water Level (m)
                     </label>
                     <input
@@ -286,22 +302,21 @@ export default function Drawer({ isOpen, onClose, item, onUpdateThresholds }) {
                       value={levelThreshold}
                       onChange={(e) => setLevelThreshold(e.target.value)}
                       className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium dark:border-slate-800 dark:bg-slate-900 focus:outline-emerald-500"
-                      required
                     />
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">
-                      Max Debit (m³/s)
-                    </label>
-                    <input
-                      type="number"
-                      step="10"
-                      value={debitThreshold}
-                      onChange={(e) => setDebitThreshold(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium dark:border-slate-800 dark:bg-slate-900 focus:outline-emerald-500"
-                      required
-                    />
-                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">
+                    Max Debit / Discharge (m³/s)
+                  </label>
+                  <input
+                    type="number"
+                    step="10"
+                    value={debitThreshold}
+                    onChange={(e) => setDebitThreshold(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium dark:border-slate-800 dark:bg-slate-900 focus:outline-emerald-500"
+                  />
                 </div>
 
                 <button
@@ -356,13 +371,27 @@ export default function Drawer({ isOpen, onClose, item, onUpdateThresholds }) {
                           strokeWidth={2.5}
                           dot={false}
                         />
+                        {item.minLevelThreshold !== null && item.minLevelThreshold !== undefined && (
+                          <ReferenceLine
+                            y={item.minLevelThreshold}
+                            stroke="#F59E0B"
+                            strokeDasharray="4 4"
+                            label={{
+                              value: `Min Limit: ${item.minLevelThreshold}m`,
+                              position: "bottom",
+                              fill: "#F59E0B",
+                              fontSize: 9,
+                              fontWeight: "bold"
+                            }}
+                          />
+                        )}
                         {item.maxLevelThreshold && (
                           <ReferenceLine
                             y={item.maxLevelThreshold}
                             stroke="#EF4444"
                             strokeDasharray="4 4"
                             label={{
-                              value: `Limit: ${item.maxLevelThreshold}m`,
+                              value: `Max Limit: ${item.maxLevelThreshold}m`,
                               position: "top",
                               fill: "#EF4444",
                               fontSize: 9,
