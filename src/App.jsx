@@ -45,9 +45,9 @@ export default function App() {
           // Fallback if the database has a plain text location (not JSON)
           metadata = {
             name: as.node_id,
-            location: as.location || "NIHSA",
-            lat: 9.082,
-            lng: 8.675,
+            location: (as.location && as.location !== "NIHSA") ? as.location : "Central Nigeria",
+            lat: 9.0765,
+            lng: 7.3986,
           };
         }
 
@@ -65,10 +65,10 @@ export default function App() {
         return {
           id: as.node_id,
           name: metadata.name || as.node_id,
-          river: metadata.river || null,
-          location: metadata.location || as.location || "NIHSA",
-          lat: metadata.lat ? parseFloat(metadata.lat) : 9.082,
-          lng: metadata.lng ? parseFloat(metadata.lng) : 8.675,
+          river: metadata.river || "River Basin",
+          location: metadata.location || ((as.location && as.location !== "NIHSA") ? as.location : "Central Nigeria"),
+          lat: metadata.lat ? parseFloat(metadata.lat) : 9.0765, // Center of Nigeria
+          lng: metadata.lng ? parseFloat(metadata.lng) : 7.3986, // Center of Nigeria
           maxLevelThreshold: maxLevel,
           maxDebitThreshold: maxDebit,
           currentLevel,
