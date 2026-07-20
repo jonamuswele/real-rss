@@ -261,7 +261,7 @@ export default function ExportData({ stations = [] }) {
             </h3>
           </div>
           <span className="text-[10px] font-bold text-slate-400 uppercase">
-            Showing top {Math.min(previewData.length, 100)} records
+            Showing latest {Math.min(previewData.length, 10)} records
           </span>
         </div>
 
@@ -286,7 +286,7 @@ export default function ExportData({ stations = [] }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-850">
-                {previewData.slice(0, 100).map((row, idx) => (
+                {previewData.slice(0, 10).map((row, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
                     <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">
                       {row.stationId}
