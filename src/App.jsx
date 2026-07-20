@@ -102,13 +102,30 @@ export default function App() {
 
   // Helper to open details drawer for stations
   const handleSelectStation = async (station) => {
-    setSelectedItem({ ...station, type: "station", isLoadingHistory: true });
+    const hasCachedHistory = station.history && station.history.length > 0;
+    
+    setSelectedItem({
+      ...station,
+      type: "station",
+      history: station.history || [],
+      isLoadingHistory: !hasCachedHistory
+    });
     setIsDrawerOpen(true);
-    try {
-      const readings = await api.getReadingsForStation(station.id);
 
-      // Map readings directly from database
-      const history = readings.map((r) => {
+    try {
+      const readings = await api.getReadingsForStation(station.id, 200);
+
+      // Filter readings strictly to the past 24 hours
+      const now = new Date();
+      const cutoff24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      const last24hReadings = (readings || []).filter((r) => {
+        const recordedDate = new Date(r.recorded_at);
+        return recordedDate >= cutoff24h;
+      });
+
+      // Map 24-hour readings directly from database
+      const history = last24hReadings.map((r) => {
         const date = new Date(r.recorded_at);
         const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const fullTime = date.toLocaleString([], { 
@@ -126,6 +143,11 @@ export default function App() {
           debit
         };
       }).reverse(); // Recharts expects chronological order (left to right)
+
+      // Cache history in station state so subsequent drawer opens render instantly
+      setStations((prevStations) =>
+        prevStations.map((st) => (st.id === station.id ? { ...st, history } : st))
+      );
 
       setSelectedItem((prev) => {
         if (prev && prev.id === station.id) {
