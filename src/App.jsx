@@ -283,45 +283,75 @@ export default function App() {
       st.currentDebit >= st.maxDebitThreshold
   ).length;
 
-  // Dynamically generate anomalies from station warning thresholds (both high and low limits)
+  // Dynamically generate anomalies from station warning thresholds & 24-hour timeout
   const activeAnomalies = stations.flatMap((st) => {
     const list = [];
+    const now = new Date();
+
+    // 1. High Water Level Exceeded
     if (st.maxLevelThreshold && st.currentLevel >= st.maxLevelThreshold) {
       list.push({
         id: `ANOM_MAX_${st.id}`,
         type: "Critical High Water Level",
+        cause: "Water level exceeded maximum flood safety threshold",
         sourceType: "station",
         sourceId: st.id,
         sourceName: st.name,
-        description: `Water level has exceeded maximum limit: ${st.currentLevel}m (max limit ${st.maxLevelThreshold}m).`,
+        description: `Water level has reached ${st.currentLevel}m, exceeding maximum limit of ${st.maxLevelThreshold}m.`,
         detectedAt: st.lastSeen ? new Date(st.lastSeen).toLocaleString() : new Date().toLocaleString(),
         status: "active",
       });
     }
+
+    // 2. Low Water Level Below Minimum Limit
     if (st.minLevelThreshold !== null && st.minLevelThreshold !== undefined && st.currentLevel <= st.minLevelThreshold) {
       list.push({
         id: `ANOM_MIN_${st.id}`,
         type: "Low Water Level Anomaly",
+        cause: "Water level dropped below minimum dry-bed threshold",
         sourceType: "station",
         sourceId: st.id,
         sourceName: st.name,
-        description: `Water level has dropped below minimum limit: ${st.currentLevel}m (min limit ${st.minLevelThreshold}m).`,
+        description: `Water level has dropped to ${st.currentLevel}m, below minimum limit of ${st.minLevelThreshold}m.`,
         detectedAt: st.lastSeen ? new Date(st.lastSeen).toLocaleString() : new Date().toLocaleString(),
         status: "active",
       });
     }
+
+    // 3. High Volumetric Flow Rate
     if (st.maxDebitThreshold && st.currentDebit >= st.maxDebitThreshold) {
       list.push({
         id: `ANOM_DEBIT_${st.id}`,
         type: "High Volumetric Flow",
+        cause: "Volumetric discharge rate exceeded safety limit",
         sourceType: "station",
         sourceId: st.id,
         sourceName: st.name,
-        description: `Volumetric flow rate has exceeded safety limit: ${st.currentDebit} m³/s (limit ${st.maxDebitThreshold} m³/s).`,
+        description: `Volumetric flow rate reached ${st.currentDebit} m³/s, exceeding threshold of ${st.maxDebitThreshold} m³/s.`,
         detectedAt: st.lastSeen ? new Date(st.lastSeen).toLocaleString() : new Date().toLocaleString(),
         status: "active",
       });
     }
+
+    // 4. Sensor Offline / 1-Day Telemetry Timeout (No transmission for 24+ hours)
+    if (st.lastSeen) {
+      const lastSeenDate = new Date(st.lastSeen);
+      const hoursDiff = (now - lastSeenDate) / (1000 * 60 * 60);
+      if (hoursDiff >= 24) {
+        list.push({
+          id: `ANOM_TIMEOUT_${st.id}`,
+          type: "Telemetry Timeout / Offline",
+          cause: "No data transmitted by station sensor for over 24 hours (1 day)",
+          sourceType: "station",
+          sourceId: st.id,
+          sourceName: st.name,
+          description: `No telemetry signal received from ${st.name} since ${lastSeenDate.toLocaleString()} (${Math.floor(hoursDiff)} hours offline).`,
+          detectedAt: lastSeenDate.toLocaleString(),
+          status: "active",
+        });
+      }
+    }
+
     return list;
   });
 
