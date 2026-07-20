@@ -72,13 +72,13 @@ export default function NigeriaMap({
         const tooltipContent = `
           <div style="font-family: 'Nunito Sans', sans-serif; line-height: 1.4;">
             <div style="display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 12px; color: #10B981;">
-              🌊 ${st.name}
+              🌊 ${st.name || st.id}
             </div>
-            <div style="font-size: 10px; color: #94A3B8; margin-top: 1px;">${st.river}</div>
+            <div style="font-size: 10px; color: #94A3B8; margin-top: 1px;">${st.river || st.location || "River Station"}</div>
             <div style="margin: 6px 0; border-top: 1px solid #334155;"></div>
             <div style="font-size: 11px; color: #E2E8F0;">
-              <div><strong>Level:</strong> ${st.currentLevel}m / limit ${st.maxLevelThreshold}m</div>
-              <div><strong>Debit:</strong> ${st.currentDebit} m³/s / limit ${st.maxDebitThreshold}</div>
+              <div><strong>Water Level:</strong> ${st.currentLevel}${st.maxLevelThreshold ? ` / limit ${st.maxLevelThreshold}` : ''}</div>
+              ${st.currentDebit ? `<div><strong>Debit:</strong> ${st.currentDebit} m³/s</div>` : ''}
               <div style="margin-top: 4px;">
                 <strong>Status:</strong> 
                 <span style="font-weight: 800; text-transform: uppercase; color: ${markerColor}">
@@ -223,7 +223,34 @@ export default function NigeriaMap({
       <div className="w-full relative">
         <div ref={mapContainerRef} id="leaflet-map" />
 
-        
+        {/* Legend Panel overlay */}
+        <div className="absolute bottom-3 right-3 z-[400] rounded-lg bg-white/95 p-3 text-[10px] shadow-md backdrop-blur-xs dark:bg-slate-900/95 space-y-1.5 font-bold text-slate-700 dark:text-slate-300 border border-slate-100 dark:border-slate-800">
+          <div className="text-[9px] uppercase tracking-widest text-slate-400 mb-1 font-extrabold">Marker Type</div>
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-slate-400 border border-white flex-shrink-0"></span>
+            <span>River Station (Circle)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <svg width="11" height="11" viewBox="0 0 20 20" className="flex-shrink-0">
+              <polygon points="10,2 19,18 1,18" fill="#94A3B8" stroke="white" strokeWidth="2" strokeLinejoin="round" />
+            </svg>
+            <span>Borehole (Triangle)</span>
+          </div>
+          <div className="border-t border-slate-200 dark:border-slate-700 my-1"></div>
+          <div className="text-[9px] uppercase tracking-widest text-slate-400 mb-1 font-extrabold">Status Color</div>
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 border border-white flex-shrink-0"></span>
+            <span>Normal / Safe</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-red-500 border border-white flex-shrink-0"></span>
+            <span>Warning / Unsafe</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-500 border border-white flex-shrink-0"></span>
+            <span>Anomaly / Marginal</span>
+          </div>
+        </div>
       </div>
     </div>
   );
