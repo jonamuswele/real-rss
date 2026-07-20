@@ -34,11 +34,13 @@ export default function ExportData({ stations = [] }) {
         const latestReadings = await api.getLatestReadings();
         records = latestReadings.map((r) => {
           const st = stations.find((s) => s.id === r.node_id);
+          const val = parseFloat(r.level_cm.toFixed(2));
           return {
             stationId: r.node_id,
             stationName: st ? st.name : r.node_id,
             location: st ? st.location : (r.location || "NIHSA"),
-            waterLevel: parseFloat(r.level_cm.toFixed(2)),
+            rawLevel: val,
+            waterLevelMeters: `${val}m`,
             recordedAt: r.recorded_at
           };
         });
@@ -47,13 +49,17 @@ export default function ExportData({ stations = [] }) {
         const rawReadings = await api.getReadingsForStation(selectedStation, 500);
         const st = stations.find((s) => s.id === selectedStation);
         
-        records = (rawReadings || []).map((r) => ({
-          stationId: r.node_id || selectedStation,
-          stationName: st ? st.name : selectedStation,
-          location: st ? st.location : "NIHSA",
-          waterLevel: parseFloat(r.level_cm.toFixed(2)),
-          recordedAt: r.recorded_at
-        }));
+        records = (rawReadings || []).map((r) => {
+          const val = parseFloat(r.level_cm.toFixed(2));
+          return {
+            stationId: r.node_id || selectedStation,
+            stationName: st ? st.name : selectedStation,
+            location: st ? st.location : "NIHSA",
+            rawLevel: val,
+            waterLevelMeters: `${val}m`,
+            recordedAt: r.recorded_at
+          };
+        });
       }
 
       // Filter by time range if requested
@@ -84,7 +90,7 @@ export default function ExportData({ stations = [] }) {
 
     if (exportFormat === "csv") {
       // Build CSV header and rows
-      const headers = ["Station ID", "Station Name", "Location", "Water Level", "Recorded At"];
+      const headers = ["Station ID", "Station Name", "Location", "Raw Level", "Water Level (Meters)", "Recorded At"];
       const csvRows = [
         headers.join(","),
         ...previewData.map((row) =>
@@ -92,7 +98,8 @@ export default function ExportData({ stations = [] }) {
             `"${row.stationId}"`,
             `"${row.stationName.replace(/"/g, '""')}"`,
             `"${row.location.replace(/"/g, '""')}"`,
-            row.waterLevel,
+            row.rawLevel,
+            `"${row.waterLevelMeters}"`,
             `"${row.recordedAt}"`
           ].join(",")
         )
@@ -281,7 +288,8 @@ export default function ExportData({ stations = [] }) {
                   <th className="px-4 py-3">Station ID</th>
                   <th className="px-4 py-3">Station Name</th>
                   <th className="px-4 py-3">Location</th>
-                  <th className="px-4 py-3 text-right">Water Level</th>
+                  <th className="px-4 py-3 text-right">Raw Level</th>
+                  <th className="px-4 py-3 text-right">Water Level (Meters)</th>
                   <th className="px-4 py-3 text-right">Recorded At</th>
                 </tr>
               </thead>
@@ -293,8 +301,9 @@ export default function ExportData({ stations = [] }) {
                     </td>
                     <td className="px-4 py-3">{row.stationName}</td>
                     <td className="px-4 py-3 text-slate-400">{row.location}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-500">{row.rawLevel}</td>
                     <td className="px-4 py-3 text-right font-extrabold text-blue-500">
-                      {row.waterLevel}
+                      {row.waterLevelMeters}
                     </td>
                     <td className="px-4 py-3 text-right text-slate-400 font-mono text-[11px]">
                       {new Date(row.recordedAt).toLocaleString()}
