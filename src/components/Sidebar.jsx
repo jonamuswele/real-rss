@@ -5,6 +5,7 @@ import {
   Waves,
   Hammer,
   AlertTriangle,
+  Download,
   ShieldCheck,
   User,
   ChevronLeft,
@@ -45,6 +46,12 @@ export default function Sidebar({
       label: "Anomalies",
       icon: AlertTriangle,
       badge: anomalyCount > 0 ? { count: anomalyCount, type: "warning" } : null // Anomaly is Yellow
+    },
+    {
+      path: "/export",
+      label: "Data Export",
+      icon: Download,
+      badge: null
     }
   ];
 
@@ -176,3 +183,4 @@ export default function Sidebar({
     </aside>
   );
 }
+
