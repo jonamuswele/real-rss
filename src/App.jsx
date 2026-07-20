@@ -17,7 +17,15 @@ import {
 } from "./data/mockData";
 
 export default function App() {
-  const [stations, setStations] = useState(INITIAL_STATIONS);
+  // Load stations initial state from local device cache if present
+  const [stations, setStations] = useState(() => {
+    try {
+      const cached = localStorage.getItem("NIHSA_CACHED_STATIONS");
+      return cached ? JSON.parse(cached) : INITIAL_STATIONS;
+    } catch (e) {
+      return INITIAL_STATIONS;
+    }
+  });
   const [boreholes, setBoreholes] = useState(INITIAL_BOREHOLES);
   const [anomalies, setAnomalies] = useState(INITIAL_ANOMALIES);
 
@@ -38,61 +46,83 @@ export default function App() {
       const latestReadings = await api.getLatestReadings();
 
       // Build stations list entirely from backend database
-      const loadedStations = apiStations.map((as) => {
-        let metadata = {};
-        try {
-          metadata = JSON.parse(as.location);
-        } catch (e) {
-          // Fallback if the database has a plain text location (not JSON)
-          metadata = {
-            name: as.node_id,
-            location: (as.location && as.location !== "NIHSA") ? as.location : "Central Nigeria",
-            lat: 9.0765,
-            lng: 7.3986,
+      setStations((prevStations) => {
+        const loadedStations = apiStations.map((as) => {
+          let metadata = {};
+          try {
+            metadata = JSON.parse(as.location);
+          } catch (e) {
+            // Fallback if the database has a plain text location (not JSON)
+            metadata = {
+              name: as.node_id,
+              location: (as.location && as.location !== "NIHSA") ? as.location : "Central Nigeria",
+              lat: 9.0765,
+              lng: 7.3986,
+            };
+          }
+
+          const latestReading = latestReadings.find((lr) => lr.node_id === as.node_id);
+          const currentLevel = latestReading ? parseFloat(latestReading.level_cm.toFixed(2)) : 0;
+          
+          // Scale debit only if debit threshold is configured
+          const minLevel = metadata.minLevelThreshold !== undefined && metadata.minLevelThreshold !== null && metadata.minLevelThreshold !== "" ? parseFloat(metadata.minLevelThreshold) : null;
+          const maxLevel = metadata.maxLevelThreshold ? parseFloat(metadata.maxLevelThreshold) : null;
+          const maxDebit = metadata.maxDebitThreshold ? parseFloat(metadata.maxDebitThreshold) : null;
+          const currentDebit = maxDebit ? Math.round(currentLevel * 300) : null;
+
+          // Re-evaluate safety status dynamically
+          const isWarning = (maxLevel && currentLevel >= maxLevel) || (minLevel !== null && currentLevel <= minLevel) || (maxDebit && currentDebit >= maxDebit);
+
+          // Preserve existing history cache if present in state
+          const existing = prevStations.find((st) => st.id === as.node_id);
+          const history = existing ? existing.history || [] : [];
+
+          return {
+            id: as.node_id,
+            name: metadata.name || as.node_id,
+            river: metadata.river || "River Basin",
+            location: metadata.location || ((as.location && as.location !== "NIHSA") ? as.location : "Central Nigeria"),
+            lat: metadata.lat ? parseFloat(metadata.lat) : 9.0765, // Center of Nigeria
+            lng: metadata.lng ? parseFloat(metadata.lng) : 7.3986, // Center of Nigeria
+            minLevelThreshold: minLevel,
+            maxLevelThreshold: maxLevel,
+            maxDebitThreshold: maxDebit,
+            currentLevel,
+            currentDebit,
+            status: isWarning ? "warning" : "normal",
+            lastSeen: as.last_seen || (latestReading ? latestReading.recorded_at : null),
+            history
           };
+        });
+
+        // Save updated stations to device localStorage cache
+        try {
+          localStorage.setItem("NIHSA_CACHED_STATIONS", JSON.stringify(loadedStations));
+        } catch (e) {
+          console.warn("Could not write to localStorage cache:", e);
         }
 
-        const latestReading = latestReadings.find((lr) => lr.node_id === as.node_id);
-        const currentLevel = latestReading ? parseFloat(latestReading.level_cm.toFixed(2)) : 0;
-        
-        // Scale debit only if debit threshold is configured
-        const minLevel = metadata.minLevelThreshold !== undefined && metadata.minLevelThreshold !== null && metadata.minLevelThreshold !== "" ? parseFloat(metadata.minLevelThreshold) : null;
-        const maxLevel = metadata.maxLevelThreshold ? parseFloat(metadata.maxLevelThreshold) : null;
-        const maxDebit = metadata.maxDebitThreshold ? parseFloat(metadata.maxDebitThreshold) : null;
-        const currentDebit = maxDebit ? Math.round(currentLevel * 300) : null;
-
-        // Re-evaluate safety status dynamically
-        const isWarning = (maxLevel && currentLevel >= maxLevel) || (minLevel !== null && currentLevel <= minLevel) || (maxDebit && currentDebit >= maxDebit);
-
-        return {
-          id: as.node_id,
-          name: metadata.name || as.node_id,
-          river: metadata.river || "River Basin",
-          location: metadata.location || ((as.location && as.location !== "NIHSA") ? as.location : "Central Nigeria"),
-          lat: metadata.lat ? parseFloat(metadata.lat) : 9.0765, // Center of Nigeria
-          lng: metadata.lng ? parseFloat(metadata.lng) : 7.3986, // Center of Nigeria
-          minLevelThreshold: minLevel,
-          maxLevelThreshold: maxLevel,
-          maxDebitThreshold: maxDebit,
-          currentLevel,
-          currentDebit,
-          status: isWarning ? "warning" : "normal",
-          lastSeen: as.last_seen || (latestReading ? latestReading.recorded_at : null),
-          history: [] // dynamically loaded when selected
-        };
+        return loadedStations;
       });
-
-      setStations(loadedStations);
     } catch (err) {
-      console.error("Error fetching or seeding data from backend:", err);
+      console.warn("Operating in offline cached mode or backend unreachable:", err);
     }
   };
 
-  // Sync data on mount and poll every 10 seconds
+  // Sync data on mount, when online, and poll every 10 seconds
   useEffect(() => {
     fetchAndMergeData();
     const interval = setInterval(fetchAndMergeData, 10000);
-    return () => clearInterval(interval);
+
+    const handleOnline = () => {
+      fetchAndMergeData();
+    };
+
+    window.addEventListener("online", handleOnline);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("online", handleOnline);
+    };
   }, [anomalies]);
 
   // Auto-close detail drawer on routing page changes
