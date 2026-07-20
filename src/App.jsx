@@ -55,12 +55,13 @@ export default function App() {
         const currentLevel = latestReading ? parseFloat(latestReading.level_cm.toFixed(2)) : 0;
         
         // Scale debit only if debit threshold is configured
+        const minLevel = metadata.minLevelThreshold !== undefined && metadata.minLevelThreshold !== null && metadata.minLevelThreshold !== "" ? parseFloat(metadata.minLevelThreshold) : null;
         const maxLevel = metadata.maxLevelThreshold ? parseFloat(metadata.maxLevelThreshold) : null;
         const maxDebit = metadata.maxDebitThreshold ? parseFloat(metadata.maxDebitThreshold) : null;
         const currentDebit = maxDebit ? Math.round(currentLevel * 300) : null;
 
         // Re-evaluate safety status dynamically
-        const isWarning = (maxLevel && currentLevel >= maxLevel) || (maxDebit && currentDebit >= maxDebit);
+        const isWarning = (maxLevel && currentLevel >= maxLevel) || (minLevel !== null && currentLevel <= minLevel) || (maxDebit && currentDebit >= maxDebit);
 
         return {
           id: as.node_id,
@@ -69,6 +70,7 @@ export default function App() {
           location: metadata.location || ((as.location && as.location !== "NIHSA") ? as.location : "Central Nigeria"),
           lat: metadata.lat ? parseFloat(metadata.lat) : 9.0765, // Center of Nigeria
           lng: metadata.lng ? parseFloat(metadata.lng) : 7.3986, // Center of Nigeria
+          minLevelThreshold: minLevel,
           maxLevelThreshold: maxLevel,
           maxDebitThreshold: maxDebit,
           currentLevel,
@@ -166,6 +168,7 @@ export default function App() {
       location: updatedFields.location !== undefined ? updatedFields.location : current.location,
       lat: updatedFields.lat !== undefined ? updatedFields.lat : current.lat,
       lng: updatedFields.lng !== undefined ? updatedFields.lng : current.lng,
+      minLevelThreshold: updatedFields.minLevelThreshold !== undefined ? updatedFields.minLevelThreshold : current.minLevelThreshold,
       maxLevelThreshold: updatedFields.maxLevelThreshold !== undefined ? updatedFields.maxLevelThreshold : current.maxLevelThreshold,
       maxDebitThreshold: updatedFields.maxDebitThreshold !== undefined ? updatedFields.maxDebitThreshold : current.maxDebitThreshold,
     };
@@ -279,28 +282,47 @@ export default function App() {
       st.currentDebit >= st.maxDebitThreshold
   ).length;
 
-  // Dynamically generate anomalies from station warning thresholds
-  const activeAnomalies = stations
-    .filter(
-      (st) =>
-        st.currentLevel >= st.maxLevelThreshold ||
-        st.currentDebit >= st.maxDebitThreshold
-    )
-    .map((st) => {
-      const isLevelExceeded = st.currentLevel >= st.maxLevelThreshold;
-      return {
-        id: `ANOM_${st.id}`,
-        type: isLevelExceeded ? "Critical Water Level" : "High Volumetric Flow",
+  // Dynamically generate anomalies from station warning thresholds (both high and low limits)
+  const activeAnomalies = stations.flatMap((st) => {
+    const list = [];
+    if (st.maxLevelThreshold && st.currentLevel >= st.maxLevelThreshold) {
+      list.push({
+        id: `ANOM_MAX_${st.id}`,
+        type: "Critical High Water Level",
         sourceType: "station",
         sourceId: st.id,
         sourceName: st.name,
-        description: isLevelExceeded
-          ? `Water level has exceeded critical limit: ${st.currentLevel}m (threshold ${st.maxLevelThreshold}m).`
-          : `Volumetric flow rate has exceeded safety limit: ${st.currentDebit} m³/s (threshold ${st.maxDebitThreshold} m³/s).`,
+        description: `Water level has exceeded maximum limit: ${st.currentLevel}m (max limit ${st.maxLevelThreshold}m).`,
         detectedAt: st.lastSeen ? new Date(st.lastSeen).toLocaleString() : new Date().toLocaleString(),
         status: "active",
-      };
-    });
+      });
+    }
+    if (st.minLevelThreshold !== null && st.minLevelThreshold !== undefined && st.currentLevel <= st.minLevelThreshold) {
+      list.push({
+        id: `ANOM_MIN_${st.id}`,
+        type: "Low Water Level Anomaly",
+        sourceType: "station",
+        sourceId: st.id,
+        sourceName: st.name,
+        description: `Water level has dropped below minimum limit: ${st.currentLevel}m (min limit ${st.minLevelThreshold}m).`,
+        detectedAt: st.lastSeen ? new Date(st.lastSeen).toLocaleString() : new Date().toLocaleString(),
+        status: "active",
+      });
+    }
+    if (st.maxDebitThreshold && st.currentDebit >= st.maxDebitThreshold) {
+      list.push({
+        id: `ANOM_DEBIT_${st.id}`,
+        type: "High Volumetric Flow",
+        sourceType: "station",
+        sourceId: st.id,
+        sourceName: st.name,
+        description: `Volumetric flow rate has exceeded safety limit: ${st.currentDebit} m³/s (limit ${st.maxDebitThreshold} m³/s).`,
+        detectedAt: st.lastSeen ? new Date(st.lastSeen).toLocaleString() : new Date().toLocaleString(),
+        status: "active",
+      });
+    }
+    return list;
+  });
 
   const activeAnomalyCount = activeAnomalies.length;
 
