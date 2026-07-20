@@ -46,10 +46,10 @@ export default function Anomalies({
       badge: "Rate of Change"
     },
     {
-      title: "3. Telemetry Flatlining",
-      trigger: "0.00m change over 24 hours",
-      desc: "Flags stations whose levels remain mathematically identical for 24+ consecutive hours. In natural flowing rivers or aquifers, level micro-fluctuations occur constantly. A flatline indicates a stuck mechanical float or locked transmitter.",
-      badge: "Flatline"
+      title: "3. 24-Hour Telemetry Timeout",
+      trigger: "No transmission received for 24+ hours (1 day)",
+      desc: "Triggered if a station fails to transmit new telemetry readings for over 1 day (24 hours). This signals power failure, network outage, or physical sensor damage.",
+      badge: "1-Day Timeout"
     },
     {
       title: "4. Seasonal Historical Divergence",
@@ -118,24 +118,29 @@ export default function Anomalies({
                     <div className="rounded-lg bg-yellow-50 p-3 dark:bg-yellow-950/40">
                       <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
                     </div>
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="flex items-center gap-1.5 text-xs font-extrabold text-slate-850 dark:text-white">
-                          {getSourceIcon(anom.sourceType)}
-                          {anom.sourceName}
-                        </span>
-                        <span className="rounded-md bg-yellow-100 px-2 py-0.5 text-[9px] font-bold text-yellow-800 dark:bg-yellow-950/55 dark:text-yellow-450 uppercase">
-                          {anom.type}
-                        </span>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {anom.detectedAt}
-                        </span>
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="flex items-center gap-1.5 text-xs font-extrabold text-slate-850 dark:text-white">
+                            {getSourceIcon(anom.sourceType)}
+                            {anom.sourceName}
+                          </span>
+                          <span className="rounded-md bg-yellow-100 px-2 py-0.5 text-[9px] font-bold text-yellow-800 dark:bg-yellow-950/55 dark:text-yellow-450 uppercase">
+                            {anom.type}
+                          </span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {anom.detectedAt}
+                          </span>
+                        </div>
+                        {anom.cause && (
+                          <div className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                            ⚡ Cause: {anom.cause}
+                          </div>
+                        )}
+                        <p className="text-xs font-medium text-slate-600 dark:text-slate-400 leading-relaxed max-w-2xl">
+                          {anom.description}
+                        </p>
                       </div>
-                      <p className="text-xs font-medium text-slate-600 dark:text-slate-400 leading-relaxed max-w-2xl">
-                        {anom.description}
-                      </p>
-                    </div>
                   </div>
 
                   <div className="sm:text-right">
@@ -180,9 +185,14 @@ export default function Anomalies({
                         {anom.sourceName}
                       </td>
                       <td className="p-4">
-                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400 uppercase">
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400 uppercase block mb-1">
                           {anom.type}
                         </span>
+                        {anom.cause && (
+                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                            Cause: {anom.cause}
+                          </span>
+                        )}
                       </td>
                       <td className="p-4 text-slate-400 max-w-xs truncate" title={anom.description}>
                         {anom.description}
