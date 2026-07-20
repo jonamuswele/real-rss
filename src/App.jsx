@@ -44,50 +44,37 @@ export default function App() {
         } catch (e) {
           // Fallback if the database has a plain text location (not JSON)
           metadata = {
-            name: `Station ${as.node_id}`,
-            river: "Telemetry Node",
+            name: as.node_id,
             location: as.location || "NIHSA",
             lat: 9.082,
             lng: 8.675,
-            maxLevelThreshold: 10.0,
-            maxDebitThreshold: 3000,
           };
         }
 
         const latestReading = latestReadings.find((lr) => lr.node_id === as.node_id);
-        const currentLevel = latestReading ? parseFloat((latestReading.level_cm / 100).toFixed(2)) : 0;
+        const currentLevel = latestReading ? parseFloat(latestReading.level_cm.toFixed(2)) : 0;
         
-        // Scale debit from water level
-        const debitScale = {
-          STN_01: 350,
-          STN_02: 300,
-          STN_03: 280,
-          STN_04: 380,
-          STN_05: 250,
-          STN_06: 400,
-          STN_07: 230,
-          STN_08: 250
-        }[as.node_id] || 300;
-        const currentDebit = Math.round(currentLevel * debitScale);
+        // Scale debit only if debit threshold is configured
+        const maxLevel = metadata.maxLevelThreshold ? parseFloat(metadata.maxLevelThreshold) : null;
+        const maxDebit = metadata.maxDebitThreshold ? parseFloat(metadata.maxDebitThreshold) : null;
+        const currentDebit = maxDebit ? Math.round(currentLevel * 300) : null;
 
         // Re-evaluate safety status dynamically
-        const maxLevel = parseFloat(metadata.maxLevelThreshold) || 10.0;
-        const maxDebit = parseFloat(metadata.maxDebitThreshold) || 3000;
-        const isWarning = currentLevel >= maxLevel || currentDebit >= maxDebit;
+        const isWarning = (maxLevel && currentLevel >= maxLevel) || (maxDebit && currentDebit >= maxDebit);
 
         return {
           id: as.node_id,
-          name: metadata.name || `Station ${as.node_id}`,
-          river: metadata.river || "Telemetry Node",
-          location: metadata.location || "NIHSA",
-          lat: parseFloat(metadata.lat) || 9.082,
-          lng: parseFloat(metadata.lng) || 8.675,
+          name: metadata.name || as.node_id,
+          river: metadata.river || null,
+          location: metadata.location || as.location || "NIHSA",
+          lat: metadata.lat ? parseFloat(metadata.lat) : 9.082,
+          lng: metadata.lng ? parseFloat(metadata.lng) : 8.675,
           maxLevelThreshold: maxLevel,
           maxDebitThreshold: maxDebit,
           currentLevel,
           currentDebit,
           status: isWarning ? "warning" : "normal",
-          lastSeen: as.last_seen || null,
+          lastSeen: as.last_seen || (latestReading ? latestReading.recorded_at : null),
           history: [] // dynamically loaded when selected
         };
       });
@@ -116,19 +103,8 @@ export default function App() {
     setIsDrawerOpen(true);
     try {
       const readings = await api.getReadingsForStation(station.id);
-      
-      const debitScale = {
-        STN_01: 350,
-        STN_02: 300,
-        STN_03: 280,
-        STN_04: 380,
-        STN_05: 250,
-        STN_06: 400,
-        STN_07: 230,
-        STN_08: 250
-      }[station.id] || 300;
 
-      // Map readings to history format
+      // Map readings directly from database
       const history = readings.map((r) => {
         const date = new Date(r.recorded_at);
         const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -138,8 +114,8 @@ export default function App() {
           hour: '2-digit', 
           minute: '2-digit' 
         });
-        const level = parseFloat((r.level_cm / 100).toFixed(2));
-        const debit = Math.round(level * debitScale);
+        const level = parseFloat(r.level_cm.toFixed(2));
+        const debit = station.maxDebitThreshold ? Math.round(level * 300) : null;
         return {
           time,
           fullTime,
