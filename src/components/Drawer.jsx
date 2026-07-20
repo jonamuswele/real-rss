@@ -130,20 +130,20 @@ export default function Drawer({ isOpen, onClose, item, onUpdateThresholds }) {
                 <span className="block text-[9px] uppercase tracking-wider text-slate-400">
                   Latitude
                 </span>
-                {item.lat.toFixed(4)}
+                {item.lat !== undefined && item.lat !== null ? (typeof item.lat === 'number' ? item.lat.toFixed(4) : item.lat) : "N/A"}
               </div>
               <div>
                 <span className="block text-[9px] uppercase tracking-wider text-slate-400">
                   Longitude
                 </span>
-                {item.lng.toFixed(4)}
+                {item.lng !== undefined && item.lng !== null ? (typeof item.lng === 'number' ? item.lng.toFixed(4) : item.lng) : "N/A"}
               </div>
               {isStation && (
                 <div className="col-span-2">
                   <span className="block text-[9px] uppercase tracking-wider text-slate-400">
                     River Basin
                   </span>
-                  {item.river}
+                  {item.river || "N/A"}
                 </div>
               )}
               {isStation && item.lastSeen && (
@@ -327,46 +327,48 @@ export default function Drawer({ isOpen, onClose, item, onUpdateThresholds }) {
                   </div>
                 </div>
 
-                {/* Debit Chart */}
-                <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-                  <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                    <span>Discharge / Flow Rate (m³/s)</span>
-                    <span className="font-bold text-slate-800 dark:text-white">
-                      Current: {item.currentDebit} m³/s
-                    </span>
-                  </div>
-                  <div className="h-40 w-full text-[10px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={item.history} margin={{ left: -20, right: 5, top: 5, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                        <XAxis dataKey="time" stroke="#94A3B8" />
-                        <YAxis stroke="#94A3B8" domain={["auto", "auto"]} />
-                        <ChartTooltip />
-                        <Line
-                          type="monotone"
-                          dataKey="debit"
-                          stroke="#10B981"
-                          strokeWidth={2.5}
-                          dot={false}
-                        />
-                        {item.maxDebitThreshold && (
-                          <ReferenceLine
-                            y={item.maxDebitThreshold}
-                            stroke="#EF4444"
-                            strokeDasharray="4 4"
-                            label={{
-                              value: `Limit: ${item.maxDebitThreshold}`,
-                              position: "top",
-                              fill: "#EF4444",
-                              fontSize: 9,
-                              fontWeight: "bold"
-                            }}
+                {/* Debit Chart (Optional) */}
+                {item.currentDebit !== null && item.currentDebit !== undefined && (
+                  <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                    <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      <span>Discharge / Flow Rate (m³/s)</span>
+                      <span className="font-bold text-slate-800 dark:text-white">
+                        Current: {item.currentDebit} m³/s
+                      </span>
+                    </div>
+                    <div className="h-40 w-full text-[10px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={item.history} margin={{ left: -20, right: 5, top: 5, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                          <XAxis dataKey="time" stroke="#94A3B8" />
+                          <YAxis stroke="#94A3B8" domain={["auto", "auto"]} />
+                          <ChartTooltip />
+                          <Line
+                            type="monotone"
+                            dataKey="debit"
+                            stroke="#10B981"
+                            strokeWidth={2.5}
+                            dot={false}
                           />
-                        )}
-                      </LineChart>
-                    </ResponsiveContainer>
+                          {item.maxDebitThreshold && (
+                            <ReferenceLine
+                              y={item.maxDebitThreshold}
+                              stroke="#EF4444"
+                              strokeDasharray="4 4"
+                              label={{
+                                value: `Limit: ${item.maxDebitThreshold}`,
+                                position: "top",
+                                fill: "#EF4444",
+                                fontSize: 9,
+                                fontWeight: "bold"
+                              }}
+                            />
+                          )}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Telemetry History Log Table */}
                 <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
@@ -383,7 +385,9 @@ export default function Drawer({ isOpen, onClose, item, onUpdateThresholds }) {
                         <tr>
                           <th className="px-3 py-2">Recorded At</th>
                           <th className="px-3 py-2 text-right">Water Level</th>
-                          <th className="px-3 py-2 text-right">Flow (Debit)</th>
+                          {item.history && item.history.some(h => h.debit !== null && h.debit !== undefined) && (
+                            <th className="px-3 py-2 text-right">Flow (Debit)</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50 dark:divide-slate-800/40">
@@ -400,11 +404,13 @@ export default function Drawer({ isOpen, onClose, item, onUpdateThresholds }) {
                                 {h.fullTime || h.time}
                               </td>
                               <td className="px-3 py-2 text-right font-extrabold text-blue-500">
-                                {h.level}m
+                                {h.level}
                               </td>
-                              <td className="px-3 py-2 text-right font-extrabold text-emerald-500">
-                                {h.debit} m³/s
-                              </td>
+                              {item.history.some(x => x.debit !== null && x.debit !== undefined) && (
+                                <td className="px-3 py-2 text-right font-extrabold text-emerald-500">
+                                  {h.debit !== null && h.debit !== undefined ? `${h.debit} m³/s` : "-"}
+                                </td>
+                              )}
                             </tr>
                           ))
                         )}
