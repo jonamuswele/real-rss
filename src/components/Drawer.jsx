@@ -8,7 +8,8 @@ import {
   Calendar,
   ShieldCheck,
   TrendingUp,
-  Droplet
+  Droplet,
+  LocateFixed
 } from "lucide-react";
 import {
   LineChart,
@@ -28,6 +29,8 @@ export default function Drawer({ isOpen, onClose, item, onUpdateThresholds }) {
   const [lngCoord, setLngCoord] = useState("");
   const [levelThreshold, setLevelThreshold] = useState("");
   const [debitThreshold, setDebitThreshold] = useState("");
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState("");
 
   // Sync state when item changes
   useEffect(() => {
@@ -36,12 +39,38 @@ export default function Drawer({ isOpen, onClose, item, onUpdateThresholds }) {
       setStationLocation(item.location || "");
       setLatCoord(item.lat || "");
       setLngCoord(item.lng || "");
+      setLocationError("");
       if (item.type === "station") {
         setLevelThreshold(item.maxLevelThreshold || "");
         setDebitThreshold(item.maxDebitThreshold || "");
       }
     }
   }, [item]);
+
+  // Handler to fetch user's current GPS position
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    setIsLocating(true);
+    setLocationError("");
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLatCoord(position.coords.latitude.toFixed(6));
+        setLngCoord(position.coords.longitude.toFixed(6));
+        setIsLocating(false);
+      },
+      (error) => {
+        console.error("Error acquiring location:", error);
+        setLocationError("Could not detect location. Please check browser permissions.");
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   if (!isOpen || !item) return null;
 
@@ -197,32 +226,51 @@ export default function Drawer({ isOpen, onClose, item, onUpdateThresholds }) {
                 </div>
 
                 {/* Coordinate Position Edits */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">
-                      Latitude
-                    </label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      value={latCoord}
-                      onChange={(e) => setLatCoord(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium dark:border-slate-800 dark:bg-slate-900 focus:outline-emerald-500"
-                      required
-                    />
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                      GPS Coordinates
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleUseCurrentLocation}
+                      disabled={isLocating}
+                      className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors disabled:opacity-50"
+                    >
+                      <LocateFixed className={`h-3 w-3 ${isLocating ? 'animate-spin' : ''}`} />
+                      <span>{isLocating ? "Locating..." : "Use Current Location"}</span>
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">
-                      Longitude
-                    </label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      value={lngCoord}
-                      onChange={(e) => setLngCoord(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium dark:border-slate-800 dark:bg-slate-900 focus:outline-emerald-500"
-                      required
-                    />
+                  {locationError && (
+                    <p className="text-[10px] font-semibold text-rose-500">{locationError}</p>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase mb-0.5">
+                        Latitude
+                      </label>
+                      <input
+                        type="number"
+                        step="0.000001"
+                        value={latCoord}
+                        onChange={(e) => setLatCoord(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium dark:border-slate-800 dark:bg-slate-900 focus:outline-emerald-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase mb-0.5">
+                        Longitude
+                      </label>
+                      <input
+                        type="number"
+                        step="0.000001"
+                        value={lngCoord}
+                        onChange={(e) => setLngCoord(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium dark:border-slate-800 dark:bg-slate-900 focus:outline-emerald-500"
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
 
