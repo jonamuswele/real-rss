@@ -1,4 +1,14 @@
-const BASE_URL = import.meta.env.API_URL;
+// Get API URL from environment variable, fallback to localhost if missing or invalid
+const getBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (!envUrl || envUrl === "undefined" || envUrl === "null") {
+    // In local development, fallback to FastAPI backend on port 8000
+    return "http://localhost:8000";
+  }
+  return envUrl.replace(/\/+$/, "");
+};
+
+const BASE_URL = getBaseUrl();
 
 /**
  * API service to communicate with the FastAPI river monitor backend.
