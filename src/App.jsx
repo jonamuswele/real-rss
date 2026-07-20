@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 import WaterLevel from "./pages/WaterLevel";
 import Boreholes from "./pages/Boreholes";
 import Anomalies from "./pages/Anomalies";
+import ExportData from "./pages/ExportData";
 import { api } from "./services/api";
 
 // Initial mock data
@@ -401,6 +402,10 @@ export default function App() {
                   onResolveAnomaly={handleResolveAnomaly}
                 />
               }
+            />
+            <Route
+              path="/export"
+              element={<ExportData stations={stations} />}
             />
           </Routes>
         </main>
